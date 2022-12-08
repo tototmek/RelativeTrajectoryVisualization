@@ -14,6 +14,13 @@ class PhysicsBody {
         Vector2D acceleration;
         float mass;
 
+        /// @brief Create a physics body with default values.
+        /// @details This function creates a physics body with default values. The default values are:
+        /// - position: (0, 0)
+        /// - velocity: (0, 0)
+        /// - acceleration: (0, 0)
+        /// - mass: 1
+        /// @see PhysicsBody(Vector2D, Vector2D, float)
         PhysicsBody() {
             position = Vector2D::zero();
             velocity = Vector2D::zero();
@@ -21,6 +28,12 @@ class PhysicsBody {
             mass = 1;
         }
 
+        /// @brief Create a physics body with the given values.
+        /// @param position The position of the physics body.
+        /// @param velocity The velocity of the physics body.
+        /// @param mass The mass of the physics body.
+        /// @details This function creates a physics body with the given values.
+        /// @see PhysicsBody()
         PhysicsBody(Vector2D position, Vector2D velocity, float mass) {
             this->position = position;
             this->velocity = velocity;
@@ -114,9 +127,12 @@ class PhysicsBody {
 /// @details This class is used to represent a physics world that contains physics bodies. It can be updated with a time step, and it can add and remove physics bodies.
 class PhysicsWorld {
     public:
+        /// @brief The number of physics ticks that have occurred.
         int ticks = 0;
+        /// @brief The physics bodies in the physics world.
         std::vector<PhysicsBody> bodies;
 
+        /// @brief Create an empty physics world.
         PhysicsWorld() {
             bodies = std::vector<PhysicsBody>();
         }
