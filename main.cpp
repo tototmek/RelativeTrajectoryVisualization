@@ -7,40 +7,68 @@
 #define PRINT(x) std::cout << #x << " = " << x << std::endl
 #define PI 3.14159265358979323846
 
-// Function to initialize SDL
-void initSDL(SDL_Window **window, SDL_Renderer **renderer) {
-    SDL_Init(SDL_INIT_VIDEO);
-    *window = SDL_CreateWindow(
-        "Simulation",
-        SDL_WINDOWPOS_UNDEFINED,
-        SDL_WINDOWPOS_UNDEFINED,
-        640,
-        480,
-        SDL_WINDOW_OPENGL
-    );
-    if (window == NULL)
-        printf("Could not create window: %s\n", SDL_GetError());
-    *renderer = SDL_CreateRenderer(*window, -1, SDL_RENDERER_ACCELERATED);
-}
-
 // Function to initialize the world with bodies
 void initWorld(PhysicsWorld &world) {
     world.addBody(PhysicsBody(Vector2D(320, 240), Vector2D(25, 0), 10));
     world.addBody(PhysicsBody(Vector2D(320, 60), Vector2D(-250, 0), 1));
 }
 
+// Class extenting drawable used to draw a physics body
+class BodyDrawable : public Drawable {
+    private:
+        PhysicsBody *body;
+    public:
+        BodyDrawable(PhysicsBody *body) {
+            this->body = body;
+            this->depth = 1;
+        }
+        void draw(Camera *camera) {
+            Vector2D position = body->getPosition();
+            float radius = body->getMass();
+            camera->setDrawColor(Color::white());
+            camera->drawCircle(position, radius);
+            camera->setDrawColor(Color::red());
+            camera->drawArrow(position, position + body->getVelocity());
+        }
+};
+
+// Class extending drawable used to a background grid
+class GridDrawable : public Drawable {
+    private:
+        int width;
+        int height;
+        int spacing;
+    public:
+        GridDrawable(int width, int height, int spacing) {
+            this->width = width;
+            this->height = height;
+            this->spacing = spacing;
+            this->depth = 10;
+        }
+        void draw(Camera *camera) {
+            camera->setDrawColor(Color::darkGray());
+            for (int x = 0; x < width; x += spacing) {
+                camera->drawLine(Vector2D(x, 0), Vector2D(x, height));
+            }
+            for (int y = 0; y < height; y += spacing) {
+                camera->drawLine(Vector2D(0, y), Vector2D(width, y));
+            }
+        }
+};
+
 int main(int argc, char *argv[]) {
     // Initialize SDL
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-    initSDL(&window, &renderer);
+    Camera camera("Simulation", NULL, 1000, 1000);
 
     // Initialize the world
     PhysicsWorld world;
     initWorld(world);
     Frame2D globalFrame = Frame2D(NULL, Vector2D(0, 0), 0, Vector2D(1, 1));
-    Frame2D localFrame = Frame2D(&globalFrame, Vector2D(0, 0), 0, Vector2D(1, 1));
-    Vector2D crossPosition = Vector2D(100, 0); 
+    Frame2D cameraFrame = Frame2D(&globalFrame, Vector2D(0, 0), 0, Vector2D(1, 1));
+    camera.setFrame(&cameraFrame);
+    BodyDrawable bodyDrawable1(&world.bodies[0]);
+    BodyDrawable bodyDrawable2(&world.bodies[1]);
+    GridDrawable gridDrawable(1000, 1000, 100);
     
     // Main loop
     bool running = true;
@@ -61,8 +89,6 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        renderClearScreen(renderer, Color::black());
-
         // Update the world
         world.update(deltaTime);
         for (int i = 0; i < world.bodies.size(); i++) {
@@ -79,36 +105,13 @@ int main(int argc, char *argv[]) {
         }
 
         // Draw the world
-        renderSetColor(renderer, Color::white());
-        for (PhysicsBody &body : world.bodies)
-            renderDrawCircle(renderer, body.getPosition(), body.getMass() * 3);
-        renderSetColor(renderer, Color::white());
-        for (PhysicsBody &body : world.bodies)
-            renderDrawArrow(renderer, body.getPosition(), body.getPosition() + body.getVelocity() * 0.33);
-        renderSetColor(renderer, Color::yellow());
-        for (PhysicsBody &body : world.bodies)
-            renderDrawArrow(renderer, body.getPosition(), body.getPosition() + body.getTotalForce() * 0.33);
-        
-        // Test Frame2D
-        localFrame.setPosition(world.bodies[1].getPosition());
-        localFrame.setRotation(-world.bodies[1].getVelocity().angle());
-        renderSetColor(renderer, Color::red());
-        renderDrawArrow(renderer, localFrame.getGlobalCoordinates(Vector2D(0, 0)), localFrame.getGlobalCoordinates(Vector2D(50, 0)));
-        renderSetColor(renderer, Color::green());
-        renderDrawArrow(renderer, localFrame.getGlobalCoordinates(Vector2D(0, 0)), localFrame.getGlobalCoordinates(Vector2D(0, 50)));
-        renderSetColor(renderer, Color::red());
-        renderDrawArrow(renderer, globalFrame.getGlobalCoordinates(Vector2D(0, 0)), globalFrame.getGlobalCoordinates(Vector2D(50, 0)));
-        renderSetColor(renderer, Color::green());
-        renderDrawArrow(renderer, globalFrame.getGlobalCoordinates(Vector2D(0, 0)), globalFrame.getGlobalCoordinates(Vector2D(0, 50)));
-        renderDrawCross(renderer, localFrame.getGlobalCoordinates(crossPosition), 10);
+        cameraFrame.setPosition(world.bodies[1].getPosition());
+        cameraFrame.setRotation(-world.bodies[1].getVelocity().angle()+PI/2);
+        camera.render();
 
 
-        // Render the screen and delay the loop
-        SDL_RenderPresent(renderer);
         SDL_Delay(5);
     }
-
-    SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
 }
