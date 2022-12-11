@@ -120,6 +120,13 @@ class PhysicsBody {
         Vector2D getTotalForce() {
             return acceleration * mass;
         }
+
+        /// @brief Clone the physics body.
+        /// @return A copy of the physics body.
+        /// @details This function creates a copy of the physics body. The copy has the same position, velocity, and mass as the original physics body.
+        PhysicsBody clone() {
+            return PhysicsBody(position, velocity, mass);
+        }
 };
 
 
@@ -163,6 +170,18 @@ class PhysicsWorld {
             for (int i = 0; i < bodies.size(); i++) {
                 bodies[i].update(dt);
             }
+        }
+
+        /// @brief Get a copy of the physics world.
+        /// @return A copy of the physics world.
+        /// @details This function creates a copy of the physics world. The physics bodies in the physics world are also copied.
+        PhysicsWorld clone () {
+            PhysicsWorld world;
+            world.ticks = ticks;
+            for (int i = 0; i < bodies.size(); i++) {
+                world.addBody(bodies[i].clone());
+            }
+            return world;
         }
 };
 

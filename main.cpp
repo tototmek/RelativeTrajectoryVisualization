@@ -6,11 +6,12 @@
 #include <SDL2/SDL.h>
 #define PRINT(x) std::cout << #x << " = " << x << std::endl
 #define PI 3.14159265358979323846
+#define GRAVITATIONAL_CONSTANT 66700000
 
 // Function to initialize the world with bodies
 void initWorld(PhysicsWorld &world) {
-    world.addBody(PhysicsBody(Vector2D(320, 240), Vector2D(25, 0), 10));
-    world.addBody(PhysicsBody(Vector2D(320, 60), Vector2D(-250, 0), 1));
+    world.addBody(PhysicsBody(Vector2D(320, 240), Vector2D(40, 0), 10));
+    world.addBody(PhysicsBody(Vector2D(320, 60), Vector2D(-400, 0), 1));
 }
 
 // Class extenting drawable used to draw a physics body
@@ -56,6 +57,47 @@ class GridDrawable : public Drawable {
         }
 };
 
+class TrajectoryDrawable : public Drawable {
+    private:
+        PhysicsBody *body;
+        std::vector<Vector2D> points;
+    public:
+        TrajectoryDrawable(PhysicsBody *body) {
+            this->body = body;
+            this->depth = 4;
+        }
+        void draw(Camera *camera) {
+            camera->setDrawColor(Color::gray());
+            if (points.size() < 2) {
+                return;
+            }
+            for (int i = 0; i < points.size() - 1; ++i) {
+                camera->drawLine(points[i], points[i + 1]);
+            }
+        }
+        void addPoint(Vector2D point) {
+            points.push_back(point);
+        }
+        void clear() {
+            points.clear();
+        }
+};
+
+void applyGravitationalForces(float strength, PhysicsWorld &world) {
+    for (int i = 0; i < world.bodies.size(); i++) {
+        for (int j = i + 1; j < world.bodies.size(); j++) {
+            PhysicsBody &body1 = world.bodies[i];
+            PhysicsBody &body2 = world.bodies[j];
+            Vector2D distance = body2.getPosition() - body1.getPosition();
+            float distanceMagnitude = distance.magnitude();
+            float forceMagnitude = strength / (distanceMagnitude * distanceMagnitude);
+            Vector2D force = distance.normalized() * forceMagnitude;
+            body1.applyForce(force);
+            body2.applyForce(-force);
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
     // Initialize SDL
     Camera camera("Simulation", NULL, 1000, 1000);
@@ -69,6 +111,7 @@ int main(int argc, char *argv[]) {
     BodyDrawable bodyDrawable1(&world.bodies[0]);
     BodyDrawable bodyDrawable2(&world.bodies[1]);
     GridDrawable gridDrawable(1000, 1000, 100);
+    TrajectoryDrawable trajectoryDrawable1(&world.bodies[1]);
     
     // Main loop
     bool running = true;
@@ -91,22 +134,22 @@ int main(int argc, char *argv[]) {
 
         // Update the world
         world.update(deltaTime);
-        for (int i = 0; i < world.bodies.size(); i++) {
-            for (int j = i + 1; j < world.bodies.size(); j++) {
-                PhysicsBody &body1 = world.bodies[i];
-                PhysicsBody &body2 = world.bodies[j];
-                Vector2D distance = body2.getPosition() - body1.getPosition();
-                float distanceMagnitude = distance.magnitude();
-                float forceMagnitude = 10000000 / (distanceMagnitude * distanceMagnitude);
-                Vector2D force = distance.normalized() * forceMagnitude;
-                body1.applyForce(force);
-                body2.applyForce(-force);
-            }
+        applyGravitationalForces(GRAVITATIONAL_CONSTANT, world);
+
+        trajectoryDrawable1.clear();
+        PhysicsWorld world_copy = world.clone();
+        for (int i=0; i<100; i++) {
+            world_copy.update(20/world_copy.bodies[1].getVelocity().magnitude());
+            applyGravitationalForces(GRAVITATIONAL_CONSTANT, world_copy);
+            trajectoryDrawable1.addPoint(world_copy.bodies[1].getPosition());
         }
 
         // Draw the world
-        cameraFrame.setPosition(world.bodies[1].getPosition());
-        cameraFrame.setRotation(-world.bodies[1].getVelocity().angle()+PI/2);
+        cameraFrame.setPosition(
+            Vector2D::lerp(
+                cameraFrame.getPosition(),
+                world.bodies[1].getPosition(),
+                0.01));
         camera.render();
 
 
